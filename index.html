@@ -169,9 +169,14 @@
             statusLog.textContent = `Initiating live compilation for ${targetUrl}...`;
 
             try {
-                const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`;
-const response = await fetch(proxyUrl);
-let rawHtml = await response.text();
+                // Using the free public AllOrigins JSON endpoint to bypass CORS blocks
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) throw new Error("Network response failed to fetch target URL.");
+                
+                const data = await response.json();
+                let rawHtml = data.contents;
 
                 if (!rawHtml) {
                     throw new Error("No HTML content returned from the target source.");
