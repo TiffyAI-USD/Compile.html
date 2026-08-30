@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiffy Platform | Website-to-HTML Compiler</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .compiler-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-color);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px 16px;
+            background-color: var(--accent-color);
+            color: #0f172a;
+            font-weight: 700;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-top: 8px;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #statusLog {
+            margin-top: 16px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-align: center;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="compiler-container">
+        <h2>Business Onboarding Compiler</h2>
+        <p class="subtitle">Crawl any web URL and package it into a platform-ready HTML asset.</p>
+        
+        <div class="input-group">
+            <label for="targetUrlInput">Target Website URL</label>
+            <input type="text" id="targetUrlInput" placeholder="https://example.com" />
+        </div>
+
+        <div class="input-group">
+            <label for="businessNameInput">Business Identifier Name</label>
+            <input type="text" id="businessNameInput" placeholder="e.g. acme-corp" />
+        </div>
+
+        <button id="scrapeBtn" onclick="handleScrapeTrigger()">Compile to Platform HTML</button>
+        
+        <div id="statusLog"></div>
+    </div>
+
+    <script>
+        async function convertWebsiteToHtml(targetUrl, businessName = "hosted-business") {
+            const statusLog = document.getElementById("statusLog");
+            
+            if (!targetUrl) {
+                alert("Please enter a valid website URL.");
+                return;
+            }
+
+            const safeName = businessName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+            const fileName = `${safeName}-site.html`;
+
+            statusLog.style.color = "var(--accent-color)";
+            statusLog.textContent = `Initiating live compilation for ${targetUrl}...`;
+
+            try {
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error("Network response failed to fetch target URL.");
+                
+                const data = await response.json();
+                let rawHtml = data.contents;
+
+                if (!rawHtml) {
+                    throw new Error("No HTML content returned from the target source.");
+                }
+
+                // Inject base tag mapping so assets resolve accurately under hosting
+                const injectionTag = `<base href="${targetUrl}">\n\n`;
+                rawHtml = rawHtml.replace("<head>", `<head>\n${injectionTag}`);
+
+                // Create standalone file blob
+                const blob = new Blob([rawHtml], { type: "text/html;charset=utf-8" });
+                const blobUrl = URL.createObjectURL(blob);
+
+                // Trigger automatic download payload
+                const downloadLink = document.createElement("a");
+                downloadLink.href = blobUrl;
+                downloadLink.download = fileName;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                
+                document.body.removeChild(downloadLink);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+
+                statusLog.style.color = "#34d399"; // Success green
+                statusLog.textContent = `Successfully packaged & downloaded: ${fileName}`;
+
+            } catch (error) {
+                console.error("Scraping execution error:", error);
+                statusLog.style.color = "#f87171"; // Error red
+                statusLog.textContent = `Compilation error. Check security restrictions or URL syntax.`;
+            }
+        }
+
+        function handleScrapeTrigger() {
+            const url = document.getElementById("targetUrlInput").value.trim();
+            const name = document.getElementById("businessNameInput").value.trim() || "business";
+            convertWebsiteToHtml(url, name);
+        }
+    </script>
+</body>
+</html>
